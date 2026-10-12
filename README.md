@@ -1,2 +1,397 @@
 # SG-
 This website is for booking bus tickets for students with less price and downloading lab manuals for Engineering students 
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learn with SG | Academic Practical Portal & Campus Transit</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              violet: '#8B5CF6',
+              cyan: '#06B6D4',
+              amber: '#F59E0B',
+              rose: '#F43F5E',
+              darkBg: '#090D16',
+              cardBg: 'rgba(15, 23, 42, 0.75)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body {
+      background-color: #090D16;
+      color: #F1F5F9;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.25s ease;
+    }
+    .glass-card:hover {
+      border-color: rgba(139, 92, 246, 0.4);
+    }
+
+    .neon-text {
+      background: linear-gradient(135deg, #06B6D4 0%, #8B5CF6 50%, #F43F5E 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Bus Berth & Seat Styles */
+    .berth {
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .berth-available {
+      background: #1E293B;
+      border: 1px solid #475569;
+      color: #94A3B8;
+      cursor: pointer;
+    }
+    .berth-available:hover {
+      border-color: #06B6D4;
+      color: #38BDF8;
+      transform: scale(1.04);
+    }
+    .berth-selected {
+      background: #8B5CF6 !important;
+      border-color: #A78BFA !important;
+      color: #FFFFFF !important;
+      box-shadow: 0 0 12px rgba(139, 92, 246, 0.6);
+    }
+    .berth-booked {
+      background: rgba(239, 68, 68, 0.15) !important;
+      border: 1px solid rgba(239, 68, 68, 0.4) !important;
+      color: #EF4444 !important;
+      cursor: not-allowed !important;
+    }
+
+    /* Print Styles for Boarding Ticket */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #ticketPrintArea, #ticketPrintArea * {
+        visibility: visible;
+      }
+      #ticketPrintArea {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-brand-violet selection:text-white">
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast" class="fixed top-5 right-5 z-[100] transform translate-y-[-100px] opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-900 border border-brand-cyan/50 text-white shadow-2xl text-sm">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-brand-cyan text-base"></i>
+    <span id="toastMsg">Notification message</span>
+  </div>
+
+  <!-- NAVIGATION HEADER -->
+  <header class="sticky top-0 z-40 glass-card border-b border-gray-800/80 px-4 lg:px-8 py-3.5">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <a href="#" onclick="switchTab('home')" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-cyan via-brand-violet to-brand-rose flex items-center justify-center text-white font-black text-xl shadow-md shadow-brand-violet/20 group-hover:scale-105 transition-transform">
+          SG
+        </div>
+        <div>
+          <span class="text-xl font-extrabold tracking-tight neon-text">Learn with SG</span>
+          <span class="block text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Academic Practicals & Transit</span>
+        </div>
+      </a>
+
+      <!-- Global Search Bar -->
+      <div class="hidden md:flex flex-1 max-w-md relative">
+        <div class="relative w-full">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input 
+            type="text" 
+            id="globalSearchInput" 
+            oninput="handleGlobalSearch(this.value)"
+            placeholder="Search manuals, codes (e.g. CS302) or bus routes..." 
+            class="w-full bg-gray-900/90 border border-gray-700/60 rounded-full pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:border-brand-violet transition-all text-gray-200 placeholder-gray-500"
+          >
+        </div>
+        <div id="searchResultsDropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50"></div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="hidden lg:flex items-center gap-1 font-medium text-sm">
+        <button onclick="switchTab('home')" id="nav-home" class="nav-btn px-3 py-2 rounded-lg text-brand-violet bg-brand-violet/10 font-semibold transition-all">
+          <i class="fa-solid fa-house mr-1"></i> Home
+        </button>
+        <button onclick="switchTab('manuals')" id="nav-manuals" class="nav-btn px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition-all">
+          <i class="fa-solid fa-book-open mr-1"></i> Lab Manuals
+        </button>
+        <button onclick="switchTab('bus')" id="nav-bus" class="nav-btn px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition-all relative">
+          <i class="fa-solid fa-bus mr-1 text-brand-cyan"></i> Bus Tickets
+          <span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-rose opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-rose"></span>
+          </span>
+        </button>
+        <button onclick="switchTab('career')" id="nav-career" class="nav-btn px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition-all">
+          <i class="fa-solid fa-chart-line mr-1"></i> Career
+        </button>
+        <button onclick="switchTab('about')" id="nav-about" class="nav-btn px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition-all">
+          <i class="fa-solid fa-user-graduate mr-1"></i> About Us
+        </button>
+        <button onclick="switchTab('contact')" id="nav-contact" class="nav-btn px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/60 transition-all">
+          <i class="fa-solid fa-envelope mr-1"></i> Contact
+        </button>
+      </nav>
+
+      <!-- Mobile Menu Toggle -->
+      <button onclick="toggleMobileMenu()" class="lg:hidden p-2 text-gray-300 hover:text-white">
+        <i class="fa-solid fa-bars text-xl"></i>
+      </button>
+
+    </div>
+
+    <!-- Mobile Drawer -->
+    <div id="mobileMenu" class="hidden lg:hidden mt-3 pt-3 border-t border-gray-800 space-y-2">
+      <button onclick="switchTab('home'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-800 flex items-center gap-3">
+        <i class="fa-solid fa-house text-brand-cyan"></i> Home
+      </button>
+      <button onclick="switchTab('manuals'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-800 flex items-center gap-3">
+        <i class="fa-solid fa-book-open text-brand-violet"></i> Lab Manuals
+      </button>
+      <button onclick="switchTab('bus'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-800 flex items-center gap-3">
+        <i class="fa-solid fa-bus text-brand-amber"></i> Bus Ticket Booking
+      </button>
+      <button onclick="switchTab('career'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-800 flex items-center gap-3">
+        <i class="fa-solid fa-chart-line text-brand-rose"></i> Career Guidance
+      </button>
+      <button onclick="switchTab('about'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-800 flex items-center gap-3">
+        <i class="fa-solid fa-user-graduate text-brand-amber"></i> About Us
+      </button>
+      <button onclick="switchTab('contact'); toggleMobileMenu()" class="w-full text-left px-4 py-2 rounded-lg text-gray-200 hover:bg-gray-800 flex items-center gap-3">
+        <i class="fa-solid fa-envelope text-gray-400"></i> Contact
+      </button>
+    </div>
+  </header>
+
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-8">
+
+    <!-- ========================================== -->
+    <!-- SECTION 1: HOME PAGE                       -->
+    <!-- ========================================== -->
+    <div id="tab-home" class="tab-content space-y-16">
+
+      <!-- Hero Section -->
+      <section class="grid lg:grid-cols-12 gap-8 items-center py-6">
+        <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-violet/10 border border-brand-violet/30 text-brand-violet text-xs font-semibold uppercase tracking-wider">
+            <i class="fa-solid fa-bolt text-brand-cyan"></i> Real-Time Student Ecosystem
+          </div>
+          <h1 class="text-4xl sm:text-5xl xl:text-6xl font-black tracking-tight leading-tight">
+            Master Your Labs, <br>
+            <span class="neon-text">Book Transit Instantly</span>
+          </h1>
+          <p class="text-gray-300 text-base sm:text-lg max-w-2xl leading-relaxed mx-auto lg:mx-0">
+            View and download authentic academic lab manuals with experiment code, inspect career roadmaps, and book interdistrict campus buses with real seat selection.
+          </p>
+
+          <div class="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
+            <button onclick="switchTab('manuals')" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-violet to-brand-cyan hover:opacity-95 font-bold text-white shadow-lg shadow-brand-violet/25 hover:-translate-y-0.5 transition-all flex items-center gap-2">
+              <i class="fa-solid fa-book-open"></i> Browse Lab Manuals
+            </button>
+            <button onclick="switchTab('bus')" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-amber to-brand-rose hover:opacity-95 font-bold text-white shadow-lg shadow-brand-amber/25 hover:-translate-y-0.5 transition-all flex items-center gap-2">
+              <i class="fa-solid fa-bus"></i> Reserve Bus Seats
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Hero Showcase Card -->
+        <div class="lg:col-span-5 flex justify-center">
+          <div class="glass-card w-full max-w-sm rounded-3xl p-6 border border-gray-700/80 shadow-2xl space-y-4">
+            <div class="flex justify-between items-start">
+              <span class="p-3 bg-brand-violet/20 text-brand-violet rounded-2xl text-xl">
+                <i class="fa-solid fa-circle-check"></i>
+              </span>
+              <span class="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-full font-bold">Live Tested Prototype</span>
+            </div>
+            
+            <div class="space-y-1.5">
+              <div class="text-xs text-brand-cyan font-mono font-semibold">PORTAL FEATURES ACTIVE</div>
+              <h3 class="text-lg font-bold text-white">Full Functional Interactivity</h3>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Click any manual to view live multi-page PDF simulation, test dynamic seat selection, or submit the contact form directly to email.
+              </p>
+            </div>
+
+            <div class="pt-3 border-t border-gray-800 space-y-2 text-xs">
+              <div class="flex justify-between text-gray-300">
+                <span>Verified Manuals:</span>
+                <strong class="text-white">6 Modules</strong>
+              </div>
+              <div class="flex justify-between text-gray-300">
+                <span>Student Transit Discount:</span>
+                <strong class="text-emerald-400">15% Active</strong>
+              </div>
+              <div class="flex justify-between text-gray-300">
+                <span>Form Endpoint:</span>
+                <strong class="text-brand-cyan">Connected</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Search Widget -->
+      <section class="glass-card rounded-2xl p-6 border border-gray-800 shadow-2xl space-y-4">
+        <div class="flex items-center gap-3 text-brand-cyan font-bold text-lg">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Instant Manual Filter</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Department</label>
+            <select id="quickBranch" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option value="ALL">All Departments</option>
+              <option value="CSE">Computer Science (CSE)</option>
+              <option value="ECE">Electronics (ECE)</option>
+              <option value="MECH">Mechanical Engg.</option>
+              <option value="CIVIL">Civil Engg.</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Academic Year</label>
+            <select id="quickYear" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option value="ALL">All Years</option>
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Semester</label>
+            <select id="quickSem" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option value="ALL">All Semesters</option>
+              <option value="1">Sem 1</option>
+              <option value="2">Sem 2</option>
+              <option value="3">Sem 3</option>
+              <option value="4">Sem 4</option>
+              <option value="5">Sem 5</option>
+              <option value="6">Sem 6</option>
+              <option value="7">Sem 7</option>
+              <option value="8">Sem 8</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="applyQuickFilter()" class="w-full py-2 px-4 rounded-lg bg-brand-violet hover:bg-brand-violet/90 text-white font-bold text-sm shadow-md shadow-brand-violet/20 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrow-right"></i> Apply & View
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Founder Spotlight -->
+      <section class="glass-card rounded-3xl p-8 border border-gray-800 flex flex-col md:flex-row items-center justify-between gap-8 bg-gradient-to-r from-gray-900/90 via-gray-900/50 to-brand-violet/10">
+        <div class="space-y-3 max-w-2xl text-center md:text-left">
+          <div class="inline-block px-3 py-1 rounded-full bg-brand-violet/20 text-brand-violet text-xs font-semibold uppercase tracking-wider">
+            Founder & Architect
+          </div>
+          <h3 class="text-2xl font-bold text-white">Shruthin Gundaji's Vision</h3>
+          <p class="text-gray-300 text-sm leading-relaxed">
+            "Learn with SG is designed to bridge the practical knowledge gap for university students while providing practical solutions for weekend campus commutes."
+          </p>
+        </div>
+        <button onclick="switchTab('about')" class="px-6 py-3 rounded-xl bg-brand-violet hover:bg-brand-violet/90 text-white font-bold text-sm whitespace-nowrap shadow-lg shadow-brand-violet/25">
+          Read Founder Profile <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </section>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: LAB MANUALS REPOSITORY          -->
+    <!-- ========================================== -->
+    <div id="tab-manuals" class="tab-content hidden space-y-8">
+      
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-extrabold text-white">Lab Manuals Repository</h1>
+          <p class="text-gray-400 text-sm">Interactive PDF preview reader, downloadable lab reports, and viva answers.</p>
+        </div>
+        <button onclick="resetFilters()" class="self-start md:self-auto text-xs px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Reset Filters
+        </button>
+      </div>
+
+      <!-- Filters Toolbar -->
+      <div class="glass-card rounded-2xl p-5 border border-gray-800 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Search Keywords</label>
+            <div class="relative">
+              <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+              <input type="text" id="filterSearch" oninput="renderManuals()" placeholder="e.g., Data Structures, EE101..." class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-3 py-2 text-sm text-gray-200">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Department</label>
+            <select id="filterBranch" onchange="renderManuals()" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option value="ALL">All Departments</option>
+              <option value="CSE">Computer Science (CSE)</option>
+              <option value="ECE">Electronics (ECE)</option>
+              <option value="MECH">Mechanical Engg.</option>
+              <option value="CIVIL">Civil Engg.</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Academic Year</label>
+            <select id="filterYear" onchange="renderManuals()" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option value="ALL">All Years</option>
+              <option value="1">1st Year</option>
+              <option value="2">2nd Year</option>
+              <option value="3">3rd Year</option>
+              <option value="4">4th Year</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1">Semester</label>
+            <select id="filterSem" onchange="renderManuals()" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200">
+              <option value="ALL">All Semesters</option>
+              <option value="1">Sem 1</option>
+              <option value="2">Sem 2</option>
+              <option value="3">Sem 3</option>
+              <option value="4">Sem 4</option>
+              <option value="5">Sem 5</option>
+              <option value="6">Sem 6</option>
+              <option value="7">Sem 7</option>
+              <option value="8">Sem 8</option>
+            </select>
+          </div>
+        </
